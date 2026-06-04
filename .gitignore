@@ -1,0 +1,26 @@
+# Data files
+data/train/
+data/*.jpg
+data/*.csv
+*.csv
+*.jpg
+*.pdf
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Outputs (keep reports, drop models)
+outputs/models/
+outputs/predictions/
+outputs/*.json
+outputs/*.pt
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
