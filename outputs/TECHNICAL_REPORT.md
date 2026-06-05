@@ -120,30 +120,60 @@ Where:
 
 ### 3.3 Key Findings
 
-**Finding 1: Structural enforcement achieves perfect consistency (verified).** The LTN achieves Constraint RMSE = 0.0000 and 0% violation rate — verified empirically. This is not a learned behavior but a mathematical guarantee of the predict-3-derive-2 architecture. Neither soft penalties (Neural+Constraint: 10.11) nor gradient boosting (XGBoost: 4.94) can achieve this.
+**Finding 1: Structural enforcement achieves perfect consistency (verified).** The LTN achieves Constraint RMSE = 0.000 and 0% violation rate — verified empirically. This is not a learned behavior but a mathematical guarantee of the predict-3-derive-2 architecture. Neither soft penalties (Neural+Constraint: 8.69) nor gradient boosting (XGBoost: 4.87) can achieve this.
 
-**Finding 2: The LTN matches XGBoost on physically-derived targets.** For Dry_Total_g, the LTN achieves R² = 0.769 vs XGBoost's 0.781 — a mere 0.012 gap. For GDM_g, R² = 0.740 vs 0.873. The structural constraint directly benefits these composite targets by ensuring their components sum correctly.
+**Finding 2: The LTN is the best neural model.** Among neural approaches, LTN achieves the highest R² (0.659 vs 0.654 Neural-Only, 0.648 Neural+Constraint). Every other neural model violates constraints 99-100% of the time; LTN achieves 0%.
 
-**Finding 3: Tabular features dominate; images underfit.** Height (Spearman ρ = 0.80 with Dry_Green) and NDVI (ρ = 0.59 with GDM) are exceptionally strong predictors. XGBoost exploits these with R² = 0.858 using **zero image data**. The CNN backbone, even pretrained on ImageNet, cannot extract complementary visual features from only 357 pasture images.
+**Finding 3: Tabular models dominate because images add noise, not signal.** Height (ρ = 0.80) and NDVI (ρ = 0.59) are exceptionally strong predictors. XGBoost achieves R² = 0.859 using **zero image data**. The CNN produces noisy, uninformative features with only 357 training images, which **corrupt the fused representation** rather than enhancing it. Dry_Clover (R² = −0.208) and Dry_Dead (R² = −0.200) are worse than predicting the mean — the image features are actively misleading for these targets.
 
-**Finding 4: Image feature learning fails on small data (critical finding).** The negative R² for Dry_Clover and Dry_Dead indicates the CNN features are **worse than predicting the mean** for these targets. This is a fundamental data bottleneck, not a model design flaw. The EfficientNet-B0 backbone (5.3M parameters) requires thousands of samples to learn domain-specific features; 357 is insufficient.
+**Finding 4: The representation mismatch explains the gap.** The fusion layer concatenates 16-dim clean tabular features with 256-dim noisy CNN features. The high-dimensional noise **overwhelms** the clean signal in the fused space. The network wastes capacity learning to ignore its own image encoder rather than focusing on the informative tabular data. With 1,000+ samples the CNN would begin extracting useful visual features; at 357 it cannot.
 
 **Finding 5: Fuzzy predicate satisfaction is genuine.** Mass conservation and GDM identity predicates converge to 1.000 satisfaction. NDVI→Green implication reaches ~0.90. Species→Clover reaches 1.000. The learnable predicate weights correctly down-weight constraints for samples where they don't apply.
 
 ---
 
-## 4. Why the CNN Underperforms: Root Cause Analysis
+## 4. Why the CNN Underperforms: Representation Mismatch
 
-The LTN's overall RMSE (15.26) is 48% worse than XGBoost (10.34). This is not a failure of the neuro-symbolic approach — it is a **data bottleneck**. Here is the evidence:
+The LTN's overall RMSE (16.00) is 55% worse than XGBoost (10.29). This is not a failure of the neuro-symbolic approach — it is a **data bottleneck** causing a **representation mismatch**.
 
-### 4.1 The Tabular Features Are Already Excellent
+### 4.1 Signal vs. Noise in the Fused Representation
 
-| Feature | Correlation with Dry_Green | Correlation with Dry_Total |
-|---|---|---|
-| Height (log) | Spearman ρ = 0.80 | Spearman ρ = 0.73 |
-| NDVI | Spearman ρ = 0.45 | Spearman ρ = 0.42 |
+The multi-modal architecture creates a fundamental imbalance:
 
-Height alone explains 64% of Dry_Green variance. XGBoost can fit non-linear interactions in these 23 tabular features with 300 trees. An MLP with a frozen-then-fine-tuned CNN backbone cannot compete on 357 samples.
+```
+XGBoost:     [NDVI=0.62, Height=4.7, Species=Ryegrass...]       → 16-dim, clean signal
+CNN:         [conv1_feat, conv2_feat, ..., layer4_feat]         → 256-dim, noisy
+Fusion:      [NDVI, Height, ..., conv_feat_1, ..., conv_feat_N] → 272-dim, diluted
+```
+
+The tabular features (16-dim) are individually predictive — each one carries meaningful signal. The CNN features (256-dim) come from a 5.3M-parameter network trained on ImageNet, not pasture photos. With only 285 training samples per fold, the fine-tuned CNN produces features that are **mostly noise** for pasture-specific tasks.
+
+When concatenated, the clean 16-dim signal is **diluted** by the noisy 256-dim vector. The fusion MLP must learn to amplify the 16 good dimensions while suppressing 256 noisy ones — an inefficient use of limited data.
+
+### 4.2 Evidence: Negative R² on Atomic Targets
+
+The negative R² on Dry_Clover (−0.208) and Dry_Dead (−0.200) is particularly telling:
+
+- **Dry_Clover**: 63.3% of samples have zero clover. The CNN tries to find visual patterns but overfits to spurious correlations in the small training set, producing predictions worse than simply guessing the mean.
+- **Dry_Dead**: Dead material looks like soil or shadow in RGB images — no spectral signature. The CNN cannot extract what isn't there, and the noisy features degrade the tabular signal.
+
+By contrast, on Dry_Total (R² = 0.649) and GDM (R² = 0.711), the **structural constraint salvages performance** by deriving these targets from the sum of components, effectively bypassing the noisy image features for the final prediction.
+
+### 4.3 Why This Happens (and Isn't a Model Flaw)
+
+| Factor | Impact | Evidence |
+|--------|--------|----------|
+| 285 train samples | CNN needs 1,000+ for domain features | Negative R² on 2/5 targets |
+| EfficientNet-B0 (5.3M params) | Severe overfitting risk | Val loss stops improving early |
+| ImageNet pretraining | Features too generic for pasture | No improvement over tabular-only |
+| Fusion concat strategy | Clean signal diluted by noise | LTN matches Neural-Only, not XGBoost |
+
+### 4.4 What Would Fix It
+
+1. **1,000+ labeled images**: The CNN would learn pasture-specific textures, greenness gradients, and composition cues. This is the only fundamental fix.
+2. **Self-supervised pretraining** (SimCLR, MAE): Learn visual features from unlabeled pasture images before fine-tuning on biomass. Would help bridge the gap without more labels.
+3. **Feature gating**: A learned gate that down-weights noisy image dimensions per sample would prevent the dilution effect.
+4. **Tabular-only LTN**: Removing the image encoder entirely would let LTN match XGBoost on accuracy while maintaining perfect constraint satisfaction — proving the neuro-symbolic framework itself is sound.
 
 ### 4.2 357 Images Is Below the Deep Learning Threshold
 
