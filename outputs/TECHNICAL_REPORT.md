@@ -97,24 +97,24 @@ Where:
 
 | Model | RMSE ↓ | R² ↑ | Constraint RMSE ↓ | Violation Rate ↓ |
 |---|---|---|---|---|
-| XGBoost | **10.34** | **0.858** | 4.9428 | 70.8% |
-| LightGBM | 10.50 | 0.851 | 4.0816 | 80.6% |
-| Ridge + Poly | 12.38 | 0.796 | **0.0098** | **0.0%** |
-| Neural-Only | 17.66 | 0.585 | 11.23 | 100% |
-| Neural + SoftConstraint | 16.36 | 0.644 | 10.11 | 100% |
-| **LTN Neuro-Symbolic** | **15.26** | **0.690** | **0.0000** | **0.0%** |
+| XGBoost | **10.29** | **0.859** | 4.866 | 71% |
+| LightGBM | 10.56 | 0.851 | 4.216 | 81% |
+| Ridge + Poly | 12.38 | 0.796 | **0.010** | **0%** |
+| Neural-Only | 16.13 | 0.654 | 8.775 | 100% |
+| Neural + SoftConstraint | 16.27 | 0.648 | 8.692 | 100% |
+| **LTN Neuro-Symbolic** | **16.00** | **0.659** | **0.000** | **0%** |
 
-*Table 1: Single-fold validation results. XGBoost and LightGBM used 5-fold CV.*
+*Table 1: Single-fold validation results comparing all models.*
 
 ### 3.2 Per-Target R² Analysis
 
 | Target | XGBoost R² | LTN R² | Gap | Notes |
 |---|---|---|---|---|
-| Dry_Clover_g | 0.702 | −0.169 | −0.87 | Zero-inflated; CNN adds noise |
-| Dry_Dead_g | 0.327 | −0.076 | −0.40 | Hardest target for all models |
-| Dry_Green_g | 0.912 | 0.576 | −0.34 | CNN needs more data |
-| **Dry_Total_g** | 0.781 | **0.769** | **−0.01** | **LTN nearly matches XGBoost** |
-| **GDM_g** | 0.873 | **0.740** | −0.13 | Constraint helps composite |
+| Dry_Clover_g | 0.707 | −0.208 | −0.92 | Zero-inflated; CNN adds noise |
+| Dry_Dead_g | 0.342 | −0.200 | −0.54 | Hardest target for all models |
+| Dry_Green_g | 0.914 | 0.633 | −0.28 | CNN needs more data |
+| **Dry_Total_g** | 0.780 | **0.649** | **−0.13** | **LTN's best target — constraint directly helps** |
+| **GDM_g** | 0.875 | **0.711** | −0.16 | Constraint helps composite |
 
 *Table 2: LTN performs competitively on the physically-derived composite targets (Total, GDM) where the structural constraint provides direct benefit. Struggles on atomic targets (Clover, Dead) that depend on image features.*
 
