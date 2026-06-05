@@ -95,16 +95,16 @@ Where:
 
 ### 3.1 Overall Performance (Single-Fold Validation)
 
-| Model | RMSE ↓ | R² ↑ | Constraint RMSE ↓ | Violation Rate ↓ |
+| Model | RMSE | R2 | Constr. RMSE | Violation Rate |
 |---|---|---|---|---|
 | XGBoost | **10.29** | **0.859** | 4.866 | 71% |
 | LightGBM | 10.56 | 0.851 | 4.216 | 81% |
 | Ridge + Poly | 12.38 | 0.796 | **0.010** | **0%** |
 | Neural-Only | 16.13 | 0.654 | 8.775 | 100% |
 | Neural + SoftConstraint | 16.27 | 0.648 | 8.692 | 100% |
-| **LTN Neuro-Symbolic** | **16.00** | **0.659** | **0.000** | **0%** |
+| **LTN Neuro-Symbolic** | **16.00** | **0.659** | **0.000*** | **0%*** |
 
-*Table 1: Single-fold validation results comparing all models.*
+*Table 1: Comparison results (1 fold, 20 epochs per neural model). Constraint RMSE and Violation Rate measure only the 2 algebraic sum relationships (Total = Green+Dead+Clover, GDM = Green+Clover). LTN's 0% is a mathematical guarantee of the predict-3-derive-2 architecture — Total and GDM are derived, not predicted. See Sec. 3.4 for the meaningful soft constraint satisfaction scores.*
 
 ### 3.2 Per-Target R² Analysis
 
@@ -120,7 +120,7 @@ Where:
 
 ### 3.3 Key Findings
 
-**Finding 1: Structural enforcement achieves perfect consistency (verified).** The LTN achieves Constraint RMSE = 0.000 and 0% violation rate — verified empirically. This is not a learned behavior but a mathematical guarantee of the predict-3-derive-2 architecture. Neither soft penalties (Neural+Constraint: 8.69) nor gradient boosting (XGBoost: 4.87) can achieve this.
+**Finding 1: Hard constraints (algebraic sums) are trivially satisfied.** The LTN achieves 0% violation on the two sum relationships (Total = Green+Dead+Clover, GDM = Green+Clover). This is not a learned behavior — it is a mathematical guarantee of the predict-3-derive-2 architecture. Total and GDM are derived via deterministic formulas, so the violation rate is always zero by construction. This is a baseline requirement, not an achievement. The meaningful test of physical consistency is the soft constraint satisfaction (see Sec. 3.4).
 
 **Finding 2: The LTN is the best neural model.** Among neural approaches, LTN achieves the highest R² (0.659 vs 0.654 Neural-Only, 0.648 Neural+Constraint). Every other neural model violates constraints 99-100% of the time; LTN achieves 0%.
 
@@ -128,7 +128,19 @@ Where:
 
 **Finding 4: The representation mismatch explains the gap.** The fusion layer concatenates 16-dim clean tabular features with 256-dim noisy CNN features. The high-dimensional noise **overwhelms** the clean signal in the fused space. The network wastes capacity learning to ignore its own image encoder rather than focusing on the informative tabular data. With 1,000+ samples the CNN would begin extracting useful visual features; at 357 it cannot.
 
-**Finding 5: Fuzzy predicate satisfaction is genuine.** Mass conservation and GDM identity predicates converge to 1.000 satisfaction. NDVI→Green implication reaches ~0.90. Species→Clover reaches 1.000. The learnable predicate weights correctly down-weight constraints for samples where they don't apply.
+**Finding 5: Soft constraints show genuine physical learning.** Unlike the trivial hard constraints, the fuzzy logic predicates measure whether the model has actually learned meaningful physical relationships from data. Five of seven soft constraints converge to near-perfect satisfaction:
+
+| Soft Constraint | Satisfaction | Meaning |
+|---|---|---|
+| Mass Conservation (soft) | 1.000 | Redundant with hard constraint |
+| GDM Identity (soft) | 1.000 | Redundant with hard constraint |
+| **Height Monotonicity** | **1.000** | Taller pasture = more biomass — genuinely learned |
+| **Species → Clover ≈ 0** | **1.000** | Non-clover species → near-zero clover — genuinely learned |
+| NDVI → Low Dead | 0.994 | High NDVI implies minimal dead material |
+| NDVI → Green | 0.923 | High NDVI implies green biomass (imperfect proxy) |
+| Learned Emergent Rule | 0.646 | Partially discovered pattern |
+
+The two NDVI-based rules (0.92-0.99) are the most informative — they show the model learned a genuine ecological relationship from data, despite the small training set. The soft constraints at 1.000 (height, species) converged perfectly because the underlying relationships are nearly deterministic in pasture systems.
 
 ---
 
